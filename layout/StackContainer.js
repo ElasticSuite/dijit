@@ -179,7 +179,13 @@ var StackContainer = declare("dijit.layout.StackContainer", _LayoutWidget, {
 	removeChild: function(/*dijit/_WidgetBase*/ page){
 		// Overrides _Container.removeChild() to do layout and publish events
 
-		var idx = array.indexOf(this.getChildren(), page);
+		var idx;
+		if (typeof page === 'number') {
+			idx = page;
+			arguments[0] = this.getChildren()[page];
+		} else {
+			idx = array.indexOf(this.getChildren(), page);
+		}
 
 		this.inherited(arguments);
 
