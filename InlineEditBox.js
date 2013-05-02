@@ -1,20 +1,18 @@
 define([
 	"require",
 	"dojo/_base/array", // array.forEach
-	"dojo/aspect",
 	"dojo/_base/declare", // declare
 	"dojo/dom-attr", // domAttr.set domAttr.get
 	"dojo/dom-class", // domClass.add domClass.remove domClass.toggle
 	"dojo/dom-construct", // domConstruct.create domConstruct.destroy
 	"dojo/dom-style", // domStyle.getComputedStyle domStyle.set domStyle.get
+	"dojo/_base/event", // event.stop
 	"dojo/i18n", // i18n.getLocalization
 	"dojo/_base/kernel", // kernel.deprecated
 	"dojo/keys", // keys.ENTER keys.ESCAPE
 	"dojo/_base/lang", // lang.getObject
-	"dojo/on",
 	"dojo/sniff", // has("ie")
 	"dojo/when",
-	"./a11yclick",
 	"./focus",
 	"./_Widget",
 	"./_TemplatedMixin",
@@ -25,7 +23,8 @@ define([
 	"./form/TextBox",
 	"dojo/text!./templates/InlineEditBox.html",
 	"dojo/i18n!./nls/common"
-], function(require, array, aspect, declare, domAttr, domClass, domConstruct, domStyle, i18n, kernel, keys, lang, on, has, when, a11yclick, fm, _Widget, _TemplatedMixin, _WidgetsInTemplateMixin, _Container, Button, _TextBoxMixin, TextBox, template){
+], function(require, array, declare, domAttr, domClass, domConstruct, domStyle, event, i18n, kernel, keys, lang, has, when,
+			fm, _Widget, _TemplatedMixin, _WidgetsInTemplateMixin, _Container, Button, _TextBoxMixin, TextBox, template){
 
 	// module:
 	//		dijit/InlineEditBox
@@ -45,8 +44,6 @@ define([
 		//		Value as an HTML string or plain text string, depending on renderAsHTML flag
 
 		templateString: template,
-
-		contextRequire: require,
 
 		postMixInProperties: function(){
 			this.inherited(arguments);
@@ -98,8 +95,7 @@ define([
 				lang: this.lang,
 				textDir: this.textDir
 			});
-			// set the value in onLoadDeferred instead so the widget has time to finish initializing
-			//editorParams[("displayedValue" in Cls.prototype || "_setDisplayedValueAttr" in Cls.prototype) ? "displayedValue" : "value"] = this.value;
+			editorParams[ "displayedValue" in Cls.prototype ? "displayedValue" : "value"] = this.value;
 			this.editWidget = new Cls(editorParams, this.editorPlaceholder);
 
 			if(this.inlineEditBox.autoSave){
@@ -115,18 +111,18 @@ define([
 			var ew = this.editWidget;
 
 			if(this.inlineEditBox.autoSave){
-				this.own(
-					// Selecting a value from a drop down list causes an onChange event and then we save
-					aspect.after(ew, "onChange", lang.hitch(this, "_onChange"), true),
+				// Selecting a value from a drop down list causes an onChange event and then we save
+				this.connect(ew, "onChange", "_onChange");
 
-					// ESC and TAB should cancel and save.
-					on(ew, "keydown", lang.hitch(this, "_onKeyDown"))
-				);
+				// ESC and TAB should cancel and save.  Note that edit widgets do a stopEvent() on ESC key (to
+				// prevent Dialog from closing when the user just wants to revert the value in the edit widget),
+				// so this is the only way we can see the key press event.
+				this.connect(ew, "onKeyPress", "_onKeyPress");
 			}else{
 				// If possible, enable/disable save button based on whether the user has changed the value
 				if("intermediateChanges" in ew){
 					ew.set("intermediateChanges", true);
-					this.own(aspect.after(ew, "onChange", lang.hitch(this, "_onIntermediateChange"), true));
+					this.connect(ew, "onChange", "_onIntermediateChange");
 					this.saveButton.set("disabled", true);
 				}
 			}
@@ -153,12 +149,12 @@ define([
 			// summary:
 			//		Return the [display] value of the edit widget
 			var ew = this.editWidget;
-			return String(ew.get(("displayedValue" in ew || "_getDisplayedValueAttr" in ew) ? "displayedValue" : "value"));
+			return String(ew.get("displayedValue" in ew ? "displayedValue" : "value"));
 		},
 
-		_onKeyDown: function(e){
+		_onKeyPress: function(e){
 			// summary:
-			//		Handler for keydown in the edit box in autoSave mode.
+			//		Handler for keypress in the edit box in autoSave mode.
 			// description:
 			//		For autoSave widgets, if Esc/Enter, call cancel/save.
 			// tags:
@@ -169,13 +165,11 @@ define([
 					return;
 				}
 				// If Enter/Esc pressed, treat as save/cancel.
-				if(e.keyCode == keys.ESCAPE){
-					e.stopPropagation();
-					e.preventDefault();
+				if(e.charOrCode == keys.ESCAPE){
+					event.stop(e);
 					this.cancel(true); // sets editing=false which short-circuits _onBlur processing
-				}else if(e.keyCode == keys.ENTER && e.target.tagName == "INPUT"){
-					e.stopPropagation();
-					e.preventDefault();
+				}else if(e.charOrCode == keys.ENTER && e.target.tagName == "INPUT"){
+					event.stop(e);
 					this._onChange(); // fire _onBlur and then save
 				}
 
@@ -255,7 +249,7 @@ define([
 	});
 
 
-	var InlineEditBox = declare("dijit.InlineEditBox" + (has("dojo-bidi") ? "_NoBidi" : ""), _Widget, {
+	var InlineEditBox = declare("dijit.InlineEditBox", _Widget, {
 		// summary:
 		//		An element with in-line edit capabilities
 		//
@@ -365,12 +359,16 @@ define([
 			this.displayNode = this.srcNodeRef;
 
 			// connect handlers to the display node
-			this.own(
-				on(this.displayNode, a11yclick, lang.hitch(this, "_onClick")),
-				on(this.displayNode, "mouseover, focus", lang.hitch(this, "_onMouseOver")),
-				on(this.displayNode, "mouseout, blur", lang.hitch(this, "_onMouseOut"))
-			);
-
+			var events = {
+				ondijitclick: "_onClick",
+				onmouseover: "_onMouseOver",
+				onmouseout: "_onMouseOut",
+				onfocus: "_onMouseOver",
+				onblur: "_onMouseOut"
+			};
+			for(var name in events){
+				this.connect(this.displayNode, name, events[name]);
+			}
 			this.displayNode.setAttribute("role", "button");
 			if(!this.displayNode.getAttribute("tabIndex")){
 				this.displayNode.setAttribute("tabIndex", 0);
@@ -437,8 +435,7 @@ define([
 				return;
 			}
 			if(e){
-				e.stopPropagation();
-				e.preventDefault();
+				event.stop(e);
 			}
 			this._onMouseOut();
 
@@ -460,7 +457,10 @@ define([
 			// save some display node values that can be restored later
 			this._savedTabIndex = domAttr.get(this.displayNode, "tabIndex") || "0";
 
-			if(!this.wrapperWidget){
+			if(this.wrapperWidget){
+				var ew = this.wrapperWidget.editWidget;
+				ew.set("displayedValue" in ew ? "displayedValue" : "value", this.value);
+			}else{
 				// Placeholder for edit widget
 				// Put place holder (and eventually editWidget) before the display node so that it's positioned correctly
 				// when Calendar dropdown appears, which happens automatically on focus.
@@ -506,14 +506,8 @@ define([
 			// or immediately if there is no onLoadDeferred Deferred,
 			// replace the display widget with edit widget, leaving them both displayed for a brief time so that
 			// focus can be shifted without incident.
-			var ew = ww.editWidget;
-			var self = this;
-			when(ew.onLoadDeferred, lang.hitch(ww, function(){
-				// set value again in case the edit widget's value is just now valid
-				ew.set(("displayedValue" in ew || "_setDisplayedValueAttr" in ew) ? "displayedValue" : "value", self.value);
+			when(ww.editWidget.onLoadDeferred, lang.hitch(ww, function(){
 				this.defer(function(){ // defer needed so that the change of focus doesn't happen on mousedown which also sets focus
-					// the saveButton should start out disabled in most cases but the above set could have fired onChange
-					ww.saveButton.set("disabled", "intermediateChanges" in ew);
 					this.focus(); // both nodes are showing, so we can switch focus safely
 					this._resetValue = this.getValue();
 				});
@@ -609,6 +603,10 @@ define([
 					this.onChange(val);
 				}); // defer prevents browser freeze for long-running event handlers
 			}
+			// contextual (auto) text direction depends on the text value
+			if(this.textDir == "auto"){
+				this.applyTextDir(this.displayNode, this.displayNode.innerText);
+			}
 		},
 
 		getValue: function(){
@@ -635,17 +633,23 @@ define([
 			this.defer("onCancel"); // defer prevents browser freeze for long-running event handlers
 
 			this._showText(focus);
+		},
+
+		_setTextDirAttr: function(/*String*/ textDir){
+			// summary:
+			//		Setter for textDir.
+			// description:
+			//		Users shouldn't call this function; they should be calling
+			//		set('textDir', value)
+			// tags:
+			//		private
+			if(!this._created || this.textDir != textDir){
+				this._set("textDir", textDir);
+				this.applyTextDir(this.displayNode, this.displayNode.innerText);
+				this.displayNode.align = this.dir == "rtl" ? "right" : "left"; //fix the text alignment
+			}
 		}
 	});
-
-	if(has("dojo-bidi")){
-		InlineEditBox = declare("dijit.InlineEditBox", InlineEditBox, {
-			_setValueAttr: function(){
-				this.inherited(arguments);
-				this.applyTextDir(this.displayNode);
-			}
-		});
-	}
 
 	InlineEditBox._InlineEditor = InlineEditor;	// for monkey patching
 
