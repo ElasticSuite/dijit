@@ -521,6 +521,10 @@ define([
 				}
 				domClass.add(this.domNode, classes);
 			}
+
+      if (!this.containerNode) {
+        this.containerNode = this.domNode;
+      }
 		},
 
 		postCreate: function(){
