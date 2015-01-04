@@ -120,7 +120,7 @@ TABLE.dijitSelect {
 	margin: 0;
 	border: 0;
 	padding: 0;
-	-webkit-overflow-scrolling: touch;
+	-webkit-overflow-scrolling: auto;
 }
 
 .dijitPositionOnly {
@@ -992,7 +992,7 @@ body .dijitAlignClient { position: absolute; }
 .dijitContentPane {
 	display: block;
 	overflow: auto;	/* if we don't have this (or overflow:hidden), then Widget.resizeTo() doesn't make sense for ContentPane */
-	-webkit-overflow-scrolling: touch;
+	-webkit-overflow-scrolling: auto;
 }
 
 .dijitContentPaneSingleChild {
@@ -1633,7 +1633,7 @@ div.dijitTabDisabled, .dj_ie div.dijitTabDisabled {
 	-webkit-tap-highlight-color: transparent;
 }
 .dijitDialogPaneContent {
-	-webkit-overflow-scrolling: touch;
+	-webkit-overflow-scrolling: auto;
 }
 .dijitDialogUnderlayWrapper {
 	position: absolute;
