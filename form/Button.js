@@ -50,7 +50,14 @@ define([
 		// iconClass: String
 		//		Class to apply to DOMNode in button to make it display an icon
 		iconClass: "dijitNoIcon",
-		_setIconClassAttr: { node: "iconNode", type: "class" },
+    _setIconClassAttr: function(value) {
+      this._set('iconClass', value);
+      if (!value || value === 'dijitNoIcon') {
+        this.iconNode.innerHTML = '';
+      } else {
+        this.iconNode.innerHTML = `<i class="material-icons">${value}</i>`;
+      }
+    },
 
 		baseClass: "dijitButton",
 
