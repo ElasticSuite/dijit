@@ -422,7 +422,9 @@ define([
 				// widget being attached to the DOM since it isn't when a widget is created programmatically like
 				// new MyWidget({}).	See #11635.
 				var source = this.srcNodeRef;
-				if(source && source.parentNode && this.domNode !== source){
+				if(this.mountNode && this.mountNode.parentNode && this.domNode !== this.mountNode){
+					this.mountNode.parentNode.replaceChild(this.domNode, this.mountNode);
+				} else if(source && source.parentNode && this.domNode !== source){
 					source.parentNode.replaceChild(this.domNode, source);
 					deleteSrcNodeRef = true;
 				}
