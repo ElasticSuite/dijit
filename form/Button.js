@@ -55,7 +55,7 @@ define([
       if (!value || value === 'dijitNoIcon') {
         this.iconNode.innerHTML = '';
       } else {
-        this.iconNode.innerHTML = `<i class="material-icons">${value}</i>`;
+        this.iconNode.innerHTML = '<i class="material-icons">' + value + '</i>';
       }
     },
 
