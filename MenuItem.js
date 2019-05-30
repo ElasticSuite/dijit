@@ -62,7 +62,7 @@ define([
 		// iconClass: String
 		//		Class to apply to DOMNode to make it display an icon.
 		iconClass: "dijitNoIcon",
-		_setIconClassAttr: { node: "iconNode", type: "class" },
+      //_setIconClassAttr: { node: "iconNode", type: "class" },
 
 		// accelKey: String
 		//		Text for the accelerator (shortcut) key combination, a control, alt, etc. modified keystroke meant to
@@ -93,6 +93,9 @@ define([
 				domAttr.set(this.accelKeyNode, "id", this.id + "_accel"); // only needed for backward compat
 			}
 			dom.setSelectable(this.domNode, false);
+      if (this.iconClass === 'dijitNoIcon') {
+        this.iconNode.style.display = 'none';
+      }
 		},
 
 		onClick: function(/*Event*/){
